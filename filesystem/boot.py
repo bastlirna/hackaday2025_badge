@@ -2,9 +2,13 @@
 
 from machine import I2C, Pin
 import time
+import etch_sao_sketch
+import ssd1327
 
 PETAL_ADDRESS      = 0x00
 TOUCHWHEEL_ADDRESS = 0x54
+BENDY_ADDRESS      = 0x2C
+
 
 # Testing options
 bootLED = Pin("LED", Pin.OUT)
@@ -36,9 +40,11 @@ gpio42 = Pin(21, Pin.OUT)
 gpio51 = Pin(20, Pin.OUT)
 gpio52 = Pin(19, Pin.OUT)
 
-# Position 6
-gpio61 = Pin(18, Pin.OUT)
-gpio62 = Pin(17, Pin.OUT)
+# Etch-sAo-Sketch requires IN so that ADC works correctly
+#gpio61 = Pin(18, Pin.OUT)
+#gpio62 = Pin(17, Pin.OUT)
+gpio61 = Pin(18, Pin.IN)
+gpio62 = Pin(17, Pin.IN)
 
 GPIOs = [ [gpio11, gpio12], [gpio21, gpio22], [gpio31, gpio32], [gpio41, gpio42],  [gpio51, gpio52], [gpio61, gpio62] ]
 
@@ -111,7 +117,7 @@ touchwheel_bus = None
 touchwheel_counter = 0
 while not touchwheel_bus:
     try:
-        touchwheel_bus =  which_bus_has_device_id(0x54)[0]
+        touchwheel_bus =  which_bus_has_device_id(TOUCHWHEEL_ADDRESS)[0]
     except:
         pass
     time.sleep_ms(10)
@@ -144,4 +150,33 @@ if petal_bus and not touchwheel_bus:
     time.sleep_ms(200)
     petal_bus.writeto_mem(PETAL_ADDRESS, 3, bytes([0x00]))
 
+# expect green Bendy SAO on port 3
+# pulling both GPIO high to take it out of reset
+gpio32.high()
+gpio31.high()
 
+
+
+# etch_sao_sketch_bus = None
+# etch_sao_sketch_counter = 0
+# while not etch_sao_sketch_bus:
+#     try:
+#         etch_sao_sketch_bus = which_bus_has_device_id(ssd1327.SSD1327.I2C_ADDRESS)[0]
+#     except:
+#         pass
+#     time.sleep_ms(10)
+#     etch_sao_sketch_counter = etch_sao_sketch_counter + 1
+#     if etch_sao_sketch_counter > 5:
+#         break
+# if not touchwheel_bus:
+#     print(f"Warning: etch_sao_sketch not found.")
+
+
+etch_sao_sketch_device = None
+try:
+    etch_sao_sketch_device = etch_sao_sketch.EtchSaoSketch(i2c1)
+    print("Etch-sAo-Sketch on i2c1")
+except: 
+    pass
+if not etch_sao_sketch_device:
+    print(f"Warning: Etch sAo Sketch not found.")

@@ -16,7 +16,8 @@ if petal_bus:
     for i in range(1,9):
         petal_bus.writeto_mem(PETAL_ADDRESS, i, bytes([0]))
 
-
+if etch_sao_sketch_device:
+    etch_sao_sketch_device.shake() # clear display
 
 
 while True:
@@ -55,6 +56,12 @@ while True:
             else:
                 petal_bus.writeto_mem(0, i, bytes([0x00]))
 
+    if etch_sao_sketch_device:
+        etch_left = etch_sao_sketch_device.left
+        etch_right = etch_sao_sketch_device.right
+        print (etch_left, etch_right)
+        etch_sao_sketch_device.draw_pixel(etch_left, etch_right, 1)
+        etch_sao_sketch_device.draw_display()
 
     
     time.sleep_ms(100)
