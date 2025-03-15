@@ -4,6 +4,7 @@ from machine import I2C, Pin
 import time
 import etch_sao_sketch
 import ssd1327
+from bendy import Bendy
 
 PETAL_ADDRESS      = 0x00
 TOUCHWHEEL_ADDRESS = 0x54
@@ -179,4 +180,13 @@ try:
 except: 
     pass
 if not etch_sao_sketch_device:
-    print(f"Warning: Etch sAo Sketch not found.")
+    print("Warning: Etch sAo Sketch not found.")
+
+bendy_device = None
+try:
+    bendy_bus = which_bus_has_device_id(Bendy.C_I2C_ADDRESS)[0]
+    bendy_device = Bendy(bendy_bus)
+except:
+    pass
+if not bendy_device:
+    print("Warning: Bendy not found.")
