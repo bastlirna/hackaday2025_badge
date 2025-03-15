@@ -29,6 +29,10 @@ class EtchSaoSketch():
     def right(self):
         return self._lis3dh.right
     
+    @property
+    def rotation(self):
+        return self._lis3dh.get_accell_rotation()
+    
     def shake(self):
         if self._display:
             self._display.clear()

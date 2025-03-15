@@ -12,6 +12,9 @@ class lis3dh_wrapper:
 
         # Set range of accelerometer (can be RANGE_2_G, RANGE_4_G, RANGE_8_G or RANGE_16_G).
         self._imu.range = lis3dh.RANGE_2_G
+        
+        self.roll = 0
+        self.pitch = 0
 
     # Convert acceleration to Pitch and Roll
     def get_accell_rotation(self):
@@ -25,11 +28,11 @@ class lis3dh_wrapper:
         if self.last_convert_time < time.ticks_ms():
             self.last_convert_time = time.ticks_ms() + self.convert_interval
 
-            roll = math.atan2(y_Buff , z_Buff) * 57.3
-            pitch = math.atan2((- x_Buff) , math.sqrt(y_Buff * y_Buff + z_Buff * z_Buff)) * 57.3
+            self.roll = math.atan2(y_Buff , z_Buff) * 57.3
+            self.pitch = math.atan2((- x_Buff) , math.sqrt(y_Buff * y_Buff + z_Buff * z_Buff)) * 57.3
 
         # Return the current values in roll and pitch
-        return ( roll, pitch )
+        return ( self.roll, self.pitch )
 
     def _read_left(self):
         left = self._imu.read_adc_raw(1)
