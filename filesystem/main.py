@@ -45,13 +45,21 @@ def draw_picture():
     display.framebuf.fill_rect(x+60, y+56, 4,  7,  0)
     display.show()
 
+image = 0
+images = 3
 
-try:
-    #draw_picture()
-    display_qr("https://github.com/bastlirna/hackaday2025_badge")
-except: 
-    print("Display failed")
+def draw_image():
+    try:
+        if image == 0:
+            draw_picture()
+        elif image == 1:
+            display_qr("https://github.com/bastlirna/hackaday2025_badge")
+        elif image == 2:
+            display_qr("https://macgyver.siliconhill.cz")
+    except: 
+        print("Display failed")
 
+draw_image()
 
 ## do a quick spiral to test
 if petal_bus:
@@ -75,8 +83,16 @@ buttonA_released = False
 buttonB_last_state = buttonB.value()
 buttonB_pressed = False
 buttonB_released = False
+buttonC_last_state = buttonC.value()
+buttonC_pressed = False
+buttonC_released = False
 
 bendy_mode = 0
+
+rotation_last_state = etch_sao_sketch_device.rotation
+facing_up = True
+facing_up_last = facing_up
+turned = False
 
 while True:
     
@@ -101,6 +117,34 @@ while True:
     else:
         buttonB_released = False
     buttonB_last_state = buttonB_state
+
+    buttonC_state = buttonC.value()
+    if not buttonC_state and buttonC_last_state:
+        buttonC_pressed = True
+    else:
+        buttonC_pressed = False
+    if buttonC_state and not buttonC_last_state:
+        buttonC_released = True
+    else:
+        buttonC_released = False
+    buttonC_last_state = buttonC_state
+    
+    rotation = etch_sao_sketch_device.rotation
+    rotation_last = rotation
+    roll = rotation[0]
+    pitch = rotation[1]
+    if roll > -80 and roll < 80:
+        facing_up = False
+    if roll < -100 or roll > 100:
+        facing_up = True
+    if facing_up_last and not facing_up:
+        turned = True
+        print("Turned")
+        image = (image + 1) % images
+        draw_image()
+    else:
+        turned = False
+    facing_up_last = facing_up
 
     ## display button status on RGB
     if petal_bus:
@@ -140,6 +184,7 @@ while True:
         etch_left = etch_sao_sketch_device.left
         etch_right = etch_sao_sketch_device.right
         print (etch_left, etch_right)
+        print(rotation)
         etch_sao_sketch_device.draw_pixel(etch_left, etch_right, 1)
         etch_sao_sketch_device.draw_display()
 
