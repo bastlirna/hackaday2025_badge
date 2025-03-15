@@ -46,6 +46,13 @@ def draw_picture():
     display.show()
 
 
+try:
+    #draw_picture()
+    display_qr("https://github.com/bastlirna/hackaday2025_badge")
+except: 
+    print("Display failed")
+
+
 ## do a quick spiral to test
 if petal_bus:
     for j in range(8):
@@ -61,12 +68,6 @@ if petal_bus:
 
 if etch_sao_sketch_device:
     etch_sao_sketch_device.shake() # clear display
-
-try:
-    #draw_picture()
-    display_qr("https://github.com/bastlirna/hackaday2025_badge")
-except: 
-    print("Display failed")
 
 while True:
 
