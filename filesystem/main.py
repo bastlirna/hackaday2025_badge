@@ -64,7 +64,7 @@ if etch_sao_sketch_device:
 
 try:
     #draw_picture()
-    display_qr("https://macgyver.siliconhill.cz")
+    display_qr("https://github.com/bastlirna/hackaday2025_badge")
 except: 
     print("Display failed")
 
