@@ -1,7 +1,7 @@
 from machine import I2C, Pin
 import time
 import ssd1327
-import lis3dh
+import lis3dh_wrapper
 
 __version__ = '0.1.5'
 
@@ -17,9 +17,9 @@ class EtchSaoSketch():
         print ("saving i2c bus")
         self._i2c = i2c_bus
         print ("init ssd1327 display")
-        # self._display = ssd1327.SSD1327(self._i2c)
+        #self._display = ssd1327.SSD1327(self._i2c)
         print ("init accel")
-        self._lis3dh = lis3dh.Lis3dh(self._i2c)
+        self._lis3dh = lis3dh_wrapper.lis3dh_wrapper(self._i2c)
    
     @property
     def left(self):
