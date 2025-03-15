@@ -1,13 +1,39 @@
 from machine import I2C, Pin
 import time
 import ssd1327_2
+import uqr
 
 counter = 0
+
+display = ssd1327_2.WS_OLED_128X128(i2c1)
+
+def display_qr(data):
+    qr = uqr.QRCode()
+    qr.add_data(data)
+    qr.make()
+
+    matrix = qr.modules
+    qr_size = len(matrix)
+
+    scale = display.width // qr_size
+    offset_x = (display.width - (qr_size * scale)) // 2
+    offset_y = (display.height - (qr_size * scale)) // 2
+
+    display.fill(0)
+
+    for y in range(qr_size):
+        for x in range(qr_size):
+            color = 15 if matrix[y][x] else 0
+            for i in range(scale):
+                for j in range(scale):
+                    display.pixel(offset_x + x * scale + i, offset_y + y * scale + j, color)
+
+    display.show()
 
 
 def draw_picture():
     
-    display = ssd1327_2.WS_OLED_128X128(i2c1)  # Grove OLED Display
+    #display = ssd1327_2.WS_OLED_128X128(i2c1)  # Grove OLED Display
 
     display.fill(0)
     x = (display.width - 69) // 2
@@ -37,42 +63,12 @@ if etch_sao_sketch_device:
     etch_sao_sketch_device.shake() # clear display
 
 try:
-    draw_picture()
+    #draw_picture()
+    display_qr("https://macgyver.siliconhill.cz")
 except: 
     print("Display failed")
 
-buttonA_last_state = buttonA.value()
-buttonA_pressed = False
-buttonA_released = False
-buttonB_last_state = buttonB.value()
-buttonB_pressed = False
-buttonB_released = False
-
-bendy_mode = 0
-
 while True:
-    
-    buttonA_state = buttonA.value()
-    if not buttonA_state and buttonA_last_state:
-        buttonA_pressed = True
-    else:
-        buttonA_pressed = False
-    if buttonA_state and not buttonA_last_state:
-        buttonA_released = True
-    else:
-        buttonA_released = False
-    buttonA_last_state = buttonA_state
-
-    buttonB_state = buttonB.value()
-    if not buttonB_state and buttonB_last_state:
-        buttonB_pressed = True
-    else:
-        buttonB_pressed = False
-    if buttonB_state and not buttonB_last_state:
-        buttonB_released = True
-    else:
-        buttonB_released = False
-    buttonB_last_state = buttonB_state
 
     ## display button status on RGB
     if petal_bus:
@@ -115,15 +111,6 @@ while True:
         etch_sao_sketch_device.draw_pixel(etch_left, etch_right, 1)
         etch_sao_sketch_device.draw_display()
 
-    if bendy_device:
-        if buttonA_pressed:
-            bendy_mode = (bendy_mode + 1) % 6
-            bendy_device.set_mode(bendy_mode)
-            print("Bendy mode ++")
-        if buttonB_pressed:
-            bendy_mode = (bendy_mode + 6 - 1) % 6
-            bendy_device.set_mode(bendy_mode)
-            print("Bendy mode --")
     
     time.sleep_ms(100)
     bootLED.off()
