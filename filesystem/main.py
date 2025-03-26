@@ -1,11 +1,7 @@
 from machine import I2C, Pin
 import time
-import ssd1327_2
+import ssd1327
 import uqr
-
-counter = 0
-
-display = ssd1327_2.WS_OLED_128X128(i2c1)
 
 def display_qr(data):
     qr = uqr.QRCode()
@@ -32,9 +28,6 @@ def display_qr(data):
 
 
 def draw_picture():
-    
-    #display = ssd1327_2.WS_OLED_128X128(i2c1)  # Grove OLED Display
-
     display.fill(0)
     x = (display.width - 69) // 2
     y = (display.height - 69) // 2
@@ -44,9 +37,6 @@ def draw_picture():
     display.framebuf.fill_rect(x+51, y+15, 3,  54, 0)
     display.framebuf.fill_rect(x+60, y+56, 4,  7,  0)
     display.show()
-
-image = 0
-images = 3
 
 def draw_image():
     try:
@@ -59,7 +49,19 @@ def draw_image():
     except: 
         print("Display failed")
 
-draw_image()
+use_display = False
+use_etch_sao_sketch = False
+if etch_sao_sketch_device:
+    if buttonB.value():
+        display = etch_sao_sketch_device._display
+        use_display = True
+    else:
+        use_etch_sao_sketch = True
+
+if use_display:
+    image = 0
+    images = 3
+    draw_image()
 
 ## do a quick spiral to test
 if petal_bus:
@@ -74,8 +76,37 @@ if petal_bus:
     for i in range(1,9):
         petal_bus.writeto_mem(PETAL_ADDRESS, i, bytes([0]))
 
-if etch_sao_sketch_device:
+if use_etch_sao_sketch:
+    enable_calib = True
+    enable_shaking = True
+
     etch_sao_sketch_device.shake() # clear display
+
+    if enable_calib:
+        # Calibrate after screen has started, to account for power drop caused by the OLED current draw
+        print("Starting ADC calibration routine:")
+        print("Within 5 seconds, in the following order")
+        print("1. Turn both knobs all the way right")
+        print("2. Turn both knobs all the way left")
+        success = etch_sao_sketch_device.try_calibration_routine()
+        if success:
+            print("ADC calibration succeeded.")
+            print(f"Calibration values: r={etch_sao_sketch_device.calib_right_zero_offset}, l={etch_sao_sketch_device.calib_left_zero_offset}, s={etch_sao_sketch_device.calib_voltage_scaling}")
+        else:
+            print("ADC calibration failed.")
+            print(f"Using default values: r={etch_sao_sketch_device.calib_right_zero_offset}, l={etch_sao_sketch_device.calib_left_zero_offset}, s={etch_sao_sketch_device.calib_voltage_scaling}")
+
+    time.sleep(1)
+    etch_sao_sketch_device.shake()
+
+    cycles = 20 # 20 seems OK with fully populated badge, 40 is OK with only Etch sAo Sketch connected, but brings little additional benefit
+    avg_cycles = cycles
+    avg_left = 0
+    avg_right = 0
+    etch_left = etch_sao_sketch_device.left
+    etch_right = 127 - etch_sao_sketch_device.right
+    prev_left = etch_left
+    prev_right = etch_right
 
 buttonA_last_state = buttonA.value()
 buttonA_pressed = False
@@ -129,22 +160,24 @@ while True:
         buttonC_released = False
     buttonC_last_state = buttonC_state
     
-    rotation = etch_sao_sketch_device.rotation
-    rotation_last = rotation
-    roll = rotation[0]
-    pitch = rotation[1]
-    if roll > -80 and roll < 80:
-        facing_up = False
-    if roll < -100 or roll > 100:
-        facing_up = True
-    if facing_up_last and not facing_up:
-        turned = True
-        print("Turned")
-        image = (image + 1) % images
-        draw_image()
-    else:
-        turned = False
-    facing_up_last = facing_up
+    if use_display:
+        rotation = etch_sao_sketch_device.rotation
+        #print(rotation)
+        rotation_last = rotation
+        roll = rotation[0]
+        pitch = rotation[1]
+        if roll > -80 and roll < 80:
+            facing_up = False
+        if roll < -100 or roll > 100:
+            facing_up = True
+        if facing_up_last and not facing_up:
+            turned = True
+            print("Turned")
+            image = (image + 1) % images
+            draw_image()
+        else:
+            turned = False
+        facing_up_last = facing_up
 
     ## display button status on RGB
     if petal_bus:
@@ -180,13 +213,30 @@ while True:
             else:
                 petal_bus.writeto_mem(0, i, bytes([0x00]))
 
-    if etch_sao_sketch_device:
-        etch_left = etch_sao_sketch_device.left
-        etch_right = etch_sao_sketch_device.right
-        print (etch_left, etch_right)
-        print(rotation)
-        etch_sao_sketch_device.draw_pixel(etch_left, etch_right, 1)
-        etch_sao_sketch_device.draw_display()
+    if use_etch_sao_sketch:
+        # Check if the badge has been flipped, and clear the screen if it has
+        if enable_shaking and etch_sao_sketch_device.shake_detected:
+            print("Shake detected")
+            etch_sao_sketch_device.shake()
+
+        avg_left += etch_sao_sketch_device.left
+        avg_right += 127 - etch_sao_sketch_device.right
+
+        if avg_cycles == 0:
+            etch_left = int(avg_left/cycles)
+            etch_right = int(avg_right/cycles)
+        
+            etch_sao_sketch_device.draw_line(prev_left, prev_right, etch_left, etch_right, 15)
+            etch_sao_sketch_device.draw_display()
+
+            prev_left = etch_left
+            prev_right = etch_right
+
+            avg_cycles = cycles
+            avg_left = 0
+            avg_right = 0
+        else:
+            avg_cycles -= 1
 
     if bendy_device:
         if buttonA_pressed:
@@ -198,11 +248,5 @@ while True:
             bendy_device.set_mode(bendy_mode)
             print("Bendy mode --")
     
-    time.sleep_ms(100)
     bootLED.off()
-
-
-
-
-
-
+    #time.sleep_ms(20)

@@ -3,15 +3,15 @@ import time, math
 from machine import Pin, I2C
 
 class lis3dh_wrapper:
-    
+        
     last_convert_time = 0
     convert_interval = 100 #ms
-
+    
     def __init__(self, i2c_bus):
         self._imu = lis3dh.LIS3DH_I2C(i2c_bus, address=0x19)
 
         # Set range of accelerometer (can be RANGE_2_G, RANGE_4_G, RANGE_8_G or RANGE_16_G).
-        self._imu.range = lis3dh.RANGE_2_G
+        self._imu.range = lis3dh.RANGE_8_G
         
         self.roll = 0
         self.pitch = 0
@@ -35,15 +35,23 @@ class lis3dh_wrapper:
         return ( self.roll, self.pitch )
 
     def _read_left(self):
-        left = self._imu.read_adc_raw(1)
-        left = (left + 32512) // 508 # value from 0..128
-        return left
-
+      left = self._imu.read_adc_raw(1)
+      if (left > 32512):
+         left = left-65536
+      left = left + 32512 # value from 0..65535
+      return left 
+      
     def _read_right(self):
-        right = self._imu.read_adc_raw(2)
-        right = (right + 32512) // 508 # value from 0..128
-        return right
-
+      right = self._imu.read_adc_raw(2)
+      if (right > 32512):
+        right = right-65535
+      right = right + 32512 # value from 0..65535
+      return right
+    
+    def set_tap(self, tap, threshold,
+                time_limit=10, time_latency=20, time_window=255, click_cfg=None):
+        return self._imu.set_tap(tap, threshold, time_limit=time_limit, time_latency=time_latency, time_window=time_window, click_cfg=click_cfg)
+    
     @property
     def left(self):
         return self._read_left()
@@ -55,7 +63,13 @@ class lis3dh_wrapper:
     @property
     def acceleration(self):
         return self._imu.acceleration
-
+    
+    @property
+    def tapped(self):
+        return self._imu.tapped
+    
+    def shake(self, shake_threshold=19.5, avg_count=100, total_delay=0.01):
+        return self._imu.shake(shake_threshold, avg_count, total_delay)
 
 # Example usage
 if __name__ == "__main__":    # If we have found the LIS3DH

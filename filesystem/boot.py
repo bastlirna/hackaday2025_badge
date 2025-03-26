@@ -19,41 +19,45 @@ buttonB = Pin(9, Pin.IN, Pin.PULL_UP)
 buttonC = Pin(28, Pin.IN, Pin.PULL_UP)
 
 ## GPIOs
+# Set to input mode (0.8V) so Etch-sAo-sketch (I2C ADC on LIS3DH) and Bendy work properly.
+# If making use of some GPIO, make sure to initialize them otherwise. Set to Pin.OUT for 0V.
 # Position 1
-gpio11 = Pin(7, Pin.OUT)
-gpio12 = Pin(6, Pin.OUT)
+gpio11 = Pin(7, Pin.IN)
+gpio12 = Pin(6, Pin.IN)
 
 # Position 2
-gpio21 = Pin(5, Pin.OUT)
-gpio22 = Pin(4, Pin.OUT)
+gpio21 = Pin(5, Pin.IN)
+gpio22 = Pin(4, Pin.IN)
 
 # Position 3
-gpio31 = Pin(3, Pin.OUT)
-gpio32 = Pin(2, Pin.OUT)
+gpio31 = Pin(3, Pin.IN)
+gpio32 = Pin(2, Pin.IN)
 
 # Position 4
-gpio41 = Pin(22, Pin.OUT)
-gpio42 = Pin(21, Pin.OUT)
+gpio41 = Pin(22, Pin.IN)
+gpio42 = Pin(21, Pin.IN)
 
 # Position 5
-gpio51 = Pin(20, Pin.OUT)
-gpio52 = Pin(19, Pin.OUT)
+gpio51 = Pin(20, Pin.IN)
+gpio52 = Pin(19, Pin.IN)
 
-# Etch-sAo-Sketch requires IN so that ADC works correctly
-#gpio61 = Pin(18, Pin.OUT)
-#gpio62 = Pin(17, Pin.OUT)
+# Position 6
 gpio61 = Pin(18, Pin.IN)
 gpio62 = Pin(17, Pin.IN)
 
 GPIOs = [ [gpio11, gpio12], [gpio21, gpio22], [gpio31, gpio32], [gpio41, gpio42],  [gpio51, gpio52], [gpio61, gpio62] ]
 
 
-## GPIOs
-
 ## Initialize I2C peripherals
 i2c0 = I2C(0, sda=Pin(0), scl=Pin(1), freq=400_000)
-#i2c1 = I2C(1, sda=Pin(26), scl=Pin(27), freq=400_000)
-i2c1 = SoftI2C(sda=Pin(26), scl=Pin(27), freq=400_000)
+
+# The OLED on the Etch sAo Sketch does not like the micropython hardware i2c implementation.
+# Hardware fix/bodge documented here: https://forums.raspberrypi.com/viewtopic.php?t=352484
+# (remove ZD1 and ZD2 from the OLED display and change R7 and R8 from 1K to 0R)
+# If this HW modification is combined with the extended I2C timeout and the max_segment_length=512 in EtchSaoSketch, the HW I2C can be used.
+i2c1 = I2C(1, sda=Pin(26), scl=Pin(27), freq=400_000, timeout=500000)
+# as a fallback, the SW I2C:
+# i2c1 = SoftI2C(sda=Pin(26), scl=Pin(27))
 
 def which_bus_has_device_id(i2c_id, debug=False):
     '''Returns a list of i2c bus objects that have the requested id on them.
@@ -95,11 +99,13 @@ petal_bus = None
 try:
     petal_init(i2c0)
     petal_bus = i2c0
+    print("Petal on i2c0")
 except: 
     pass
 try:
     petal_init(i2c1)
     petal_bus = i2c1
+    print("Petal on i2c1")
 except:
     pass
 if not petal_bus:
@@ -127,6 +133,14 @@ while not touchwheel_bus:
 if not touchwheel_bus:
     print(f"Warning: Touchwheel not found.")
 
+etch_sao_sketch_device = None
+try:
+    etch_sao_sketch_device = etch_sao_sketch.EtchSaoSketch(i2c1)
+    print("Etch-sAo-Sketch on i2c1")
+except: 
+    pass
+if not etch_sao_sketch_device:
+    print("Warning: Etch sAo Sketch not found.")
 
 def touchwheel_read(bus):
     """Returns 0 for no touch, 1-255 clockwise around the circle from the south"""
@@ -141,44 +155,11 @@ def touchwheel_rgb(bus, r, g, b):
 
 ## goes green if wheel configured
 ## goes red if wheel is not found
+time.sleep_ms(200)
 if touchwheel_bus and petal_bus:
-    petal_bus.writeto_mem(PETAL_ADDRESS, 4, bytes([0x80]))
-    time.sleep_ms(200)
-    petal_bus.writeto_mem(PETAL_ADDRESS, 4, bytes([0x00]))
-if petal_bus and not touchwheel_bus:
-    petal_bus.writeto_mem(PETAL_ADDRESS, 3, bytes([0x80]))
-    time.sleep_ms(200)
     petal_bus.writeto_mem(PETAL_ADDRESS, 3, bytes([0x00]))
-
-# expect green Bendy SAO on port 3
-# pulling both GPIO high to take it out of reset
-gpio32.high()
-gpio31.high()
-
-
-# etch_sao_sketch_bus = None
-# etch_sao_sketch_counter = 0
-# while not etch_sao_sketch_bus:
-#     try:
-#         etch_sao_sketch_bus = which_bus_has_device_id(ssd1327.SSD1327.I2C_ADDRESS)[0]
-#     except:
-#         pass
-#     time.sleep_ms(10)
-#     etch_sao_sketch_counter = etch_sao_sketch_counter + 1
-#     if etch_sao_sketch_counter > 5:
-#         break
-# if not touchwheel_bus:
-#     print(f"Warning: etch_sao_sketch not found.")
-
-
-etch_sao_sketch_device = None
-try:
-    etch_sao_sketch_device = etch_sao_sketch.EtchSaoSketch(i2c1)
-    print("Etch-sAo-Sketch on i2c1")
-except: 
-    pass
-if not etch_sao_sketch_device:
-    print("Warning: Etch sAo Sketch not found.")
+if petal_bus and not touchwheel_bus:
+    petal_bus.writeto_mem(PETAL_ADDRESS, 4, bytes([0x00]))
 
 bendy_device = None
 try:
